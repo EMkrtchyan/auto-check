@@ -1,14 +1,31 @@
 import sqlite3
 import re
 from flask import Flask, render_template, jsonify, request
+import requests
 
 app = Flask(__name__)
 DB_NAME = 'database.db'
 
 # --- 1. Custom SQLite Functions ---
 
-# FIXED RATES FOR SQL FILTERING (Keep these synced with frontend or fetch live)
 RATES = {"USD": 1.0, "EUR": 0.93, "AMD": 405.0, "RUB": 91.5}
+
+def update_rates():
+    global RATES
+    try:
+        # Free API for USD base rates
+        url = "https://api.exchangerate-api.com/v4/latest/USD"
+        response = requests.get(url)
+        data = response.json()
+        
+        RATES = data['rates']
+        
+        print("Live currency rates updated $, Դ, €, ₽:",RATES['USD'], RATES['AMD'],  RATES['EUR'], RATES['RUB'])
+    except Exception as e:
+        print(f"Could not fetch live rates, using defaults. Error: {e}")
+
+update_rates()
+
 
 def get_price_in_usd(p_text):
     """
