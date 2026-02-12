@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoMarket Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        .car-image { height: 200px; width: 100%; object-fit: cover; background: #f3f4f6; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+<div id="app" v-cloak class="min-h-screen flex flex-col">
+    <nav class="bg-white shadow p-4 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-blue-600">AutoMarket</h1>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-gray-500">CURRENCY</span>
+                <select v-model="selectedCurrency" class="border rounded p-1 bg-gray-50 font-bold text-blue-700 outline-none">
+                    <option value="USD">USD ($)</option>
+                    <option value="AMD">AMD (֏)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="RUB">RUB (₽)</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-4 flex flex-col lg:flex-row gap-6">
+        
+        <aside class="w-full lg:w-1/4 space-y-4">
+            <div class="bg-white p-5 rounded shadow sticky top-24">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="font-bold text-lg">Filters</h3>
+                    <button @click="resetFilters" class="text-xs text-blue-500 hover:underline">Reset</button>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Make</label>
+                    <select v-model="filters.make" @change="resetModel" class="w-full border p-2 rounded">
+                        <option value="">All Makes</option>
+                        <option v-for="m in filterOptions" :value="m.name">
+                            [[ m.name ]] ([[ m.count ]])
+                        </option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Model</label>
+                    <select v-model="filters.model" :disabled="!filters.make" class="w-full border p-2 rounded disabled:bg-gray-100">
+                        <option value="">All Models</option>
+                        <option v-for="mod in availableModels" :value="mod.name">
+                            [[ mod.name ]] ([[ mod.count ]])
+                        </option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Price ([[ selectedCurrency ]])</label>
+                    <div class="flex gap-2">
+                        <input type="number" v-model="filters.minPrice" placeholder="Min" class="w-1/2 border p-2 rounded text-sm">
+                        <input type="number" v-model="filters.maxPrice" placeholder="Max" class="w-1/2 border p-2 rounded text-sm">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Mileage (KM)</label>
+                    <div class="flex gap-2">
+                        <input type="number" v-model="filters.minKm" placeholder="Min" class="w-1/2 border p-2 rounded text-sm">
+                        <input type="number" v-model="filters.maxKm" placeholder="Max" class="w-1/2 border p-2 rounded text-sm">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Fuel Type</label>
+                    <div class="space-y-1">
+                        <label v-for="fuel in ['Gasoline', 'Diesel', 'Hybrid', 'Electric', 'LPG']" class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" :value="fuel" v-model="filters.fuelTypes" class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm">[[ fuel ]]</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button @click="applyFilters" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition shadow-lg">
+                    Apply Filters
+                </button>
+            </div>
+        </aside>
+
+        <main class="w-full lg:w-3/4">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <a 
+                    v-for="car in allVehicles" 
+                    :key="car.id" 
+                    :href="'https://www.list.am/en/item/' + car.id"
+                    target="_blank"
+                    class="block bg-white rounded shadow hover:shadow-lg transition cursor-pointer hover:border-blue-400 border border-transparent"
+                >
+                    <div class="relative">
+                        <img :src="car.image" @error="fixImage" class="car-image">
+                        <div class="absolute bottom-0 right-0 bg-blue-600 text-white text-xs px-2 py-1">
+                            [[ car.year ]]
+                        </div>
+                        <div class="absolute top-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
+                            [[ car.location ]]
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold truncate text-lg text-gray-800">[[ car.make ]] [[ car.model ]]</h4>
+                        
+                        <div class="flex items-center gap-2 text-sm text-gray-500 mt-1 mb-3">
+                            <span class="bg-gray-100 px-2 py-0.5 rounded">[[ car.fuel ]]</span>
+                            <span>[[ car.mileage ]]</span>
+                        </div>
+                        
+                        <div class="border-t pt-2 flex justify-between items-center">
+                            <span class="text-lg font-bold text-green-700">
+                                [[ formatPrice(car.price_raw, car.currency_original) ]]
+                            </span>
+                            <span class="text-xs text-gray-400">[[ car.currency_original ]]</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="py-8 text-center">
+                <button v-if="hasMore" @click="loadMore" class="bg-white border border-gray-300 px-8 py-2 rounded shadow hover:bg-gray-50 transition">
+                    [[ loading ? 'Loading...' : 'Load More' ]]
+                </button>
+                <div v-if="!loading && allVehicles.length === 0" class="text-gray-500">
+                    No items found matching your filters.
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+createApp({
+    delimiters: ['[[', ']]'],
+    data() {
+        return {
+            loading: false,
+            page: 1,
+            hasMore: true,
+            allVehicles: [],
+            filterOptions: [],
+            rates: {},
+            selectedCurrency: 'USD',
+            
+            filters: {
+                make: '',
+                model: '',
+                minKm: '',
+                maxKm: '',
+                minPrice: '',
+                maxPrice: '',
+                fuelTypes: []
+            }
+        }
+    },
+    computed: {
+        availableModels() {
+            const selectedMake = this.filterOptions.find(m => m.name === this.filters.make);
+            return selectedMake ? selectedMake.models : [];
+        }
+    },
+    methods: {
+        async init() {
+            const [optRes, rateRes] = await Promise.all([
+                fetch('/api/filter-options'),
+                fetch('/api/rates')
+            ]);
+            this.filterOptions = await optRes.json();
+            this.rates = await rateRes.json();
+            this.loadVehicles(true);
+        },
+        async loadVehicles(reset = false) {
+            if (this.loading) return;
+            this.loading = true;
+            
+            if (reset) {
+                this.page = 1;
+                this.allVehicles = [];
+                this.hasMore = true;
+            }
+
+            try {
+                let minUsd = '';
+                let maxUsd = '';
+                const rate = this.rates[this.selectedCurrency] || 1;
+
+                if (this.filters.minPrice) minUsd = this.filters.minPrice / rate;
+                if (this.filters.maxPrice) maxUsd = this.filters.maxPrice / rate;
+
+                const params = new URLSearchParams({
+                    page: this.page,
+                    make: this.filters.make,
+                    model: this.filters.model,
+                    min_km: this.filters.minKm,
+                    max_km: this.filters.maxKm,
+                    min_price_usd: minUsd,
+                    max_price_usd: maxUsd,
+                    fuel: this.filters.fuelTypes.join(',')
+                });
+                
+                const res = await fetch(`/api/vehicles?${params}`);
+                const newBatch = await res.json();
+                
+                if (newBatch.length < 24) this.hasMore = false;
+                this.allVehicles = [...this.allVehicles, ...newBatch];
+                this.page++;
+            } catch(e) { console.error(e); }
+            finally { this.loading = false; }
+        },
+        loadMore() { this.loadVehicles(false); },
+        applyFilters() { this.loadVehicles(true); },
+        resetFilters() {
+            this.filters.make = '';
+            this.filters.model = '';
+            this.filters.minKm = '';
+            this.filters.maxKm = '';
+            this.filters.minPrice = '';
+            this.filters.maxPrice = '';
+            this.filters.fuelTypes = [];
+            this.loadVehicles(true);
+        },
+        resetModel() { this.filters.model = ''; },
+        
+        convertRaw(amount, from) {
+            if (!amount) return 0;
+            const inUSD = amount / (this.rates[from] || 1);
+            return inUSD * (this.rates[this.selectedCurrency] || 1);
+        },
+        formatPrice(amount, from) {
+            const val = this.convertRaw(amount, from);
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency', currency: this.selectedCurrency, maximumFractionDigits: 0
+            }).format(val);
+        },
+        fixImage(e) {
+            e.target.src = "https://via.placeholder.com/400x300?text=No+Image";
+        }
+    },
+    mounted() {
+        this.init();
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
